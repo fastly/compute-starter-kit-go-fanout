@@ -42,13 +42,13 @@ func handleFanoutWs(w fsthttp.ResponseWriter, r *fsthttp.Request, channel string
 		return
 	}
 	if bytes.Equal(body[:6], []byte("OPEN\r\n")) {
-        w.Header().Add("Content-Type", "application/websocket-events")
+		w.Header().Add("Content-Type", "application/websocket-events")
 		w.Header().Add("Sec-WebSocket-Extensions", "grip; message-prefix=\"\"")
-        w.WriteHeader(http.StatusOK)
-        resp := string(append([]byte("OPEN\r\n"), wsSub(channel)...))
-        fmt.Fprintf(w, resp)
+		w.WriteHeader(http.StatusOK)
+		resp := string(append([]byte("OPEN\r\n"), wsSub(channel)...))
+		fmt.Fprintf(w, resp)
 	} else if bytes.Equal(body[:5], []byte("TEXT ")) {
-        s := wsText(fmt.Sprintf("You said: %s\n", string(body[6:])))
+		s := wsText(fmt.Sprintf("You said: %s\n", string(body[6:])))
 		fmt.Fprintf(w, string(s))
 	}
 }
@@ -73,7 +73,7 @@ func main() {
 	fmt.Println("FASTLY_SERVICE_VERSION:", os.Getenv("FASTLY_SERVICE_VERSION"))
 	fsthttp.ServeFunc(func(ctx context.Context, w fsthttp.ResponseWriter, r *fsthttp.Request) {
 		//defer w.Close()
-        host := r.Host
+		host := r.Host
 		path := r.URL.Path
 		addr := r.RemoteAddr
 
@@ -83,7 +83,7 @@ func main() {
 			w.Header().Set("X-Forwarded-Proto", "https")
 		}
 
-        if strings.HasSuffix(host, ".edgecompute.app") && strings.HasPrefix(path, "/test/") {
+		if strings.HasSuffix(host, ".edgecompute.app") && strings.HasPrefix(path, "/test/") {
 			if r.Header.Get("Grip-Sig") != "" {
 				handleTest(w, r, "test")
 				return
