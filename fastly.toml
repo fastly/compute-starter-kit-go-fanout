@@ -1,11 +1,12 @@
 # This file describes a Fastly Compute package. To learn more visit:
 # https://www.fastly.com/documentation/reference/compute/fastly-toml
 
-authors = ["madeline.pratt@fastly.com"]
+authors = ["oss@fastly.com"]
 description = "Implements fanout handlers for Websockets, SSE, etc."
 language = "go"
-manifest_version = 1
+manifest_version = 3
 name = "Fanout golang starter kit"
+service_id = ""
 
 [scripts]
   build = "go build -o bin/main.wasm ."
