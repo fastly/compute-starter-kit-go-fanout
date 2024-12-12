@@ -16,11 +16,11 @@ import (
 func handleTest(w fsthttp.ResponseWriter, r *fsthttp.Request, channel string) {
 	switch r.URL.Path {
 	case "/test/long-poll":
-		gripResponse(w, "text/plain", "response", channel)
+		GripResponse(w, "text/plain", "response", channel)
 	case "/test/stream":
-		gripResponse(w, "text/plain", "stream", channel)
+		GripResponse(w, "text/plain", "stream", channel)
 	case "/test/sse":
-		gripResponse(w, "text/event-stream", "stream", channel)
+		GripResponse(w, "text/event-stream", "stream", channel)
 	case "/test/websocket":
 		handleFanoutWs(w, r, channel)
 	default:
@@ -35,41 +35,37 @@ func handleFanoutWs(w fsthttp.ResponseWriter, r *fsthttp.Request, channel string
 		fmt.Fprintf(w, "Not a Websocket-Over-HTTP request.\n")
 		return
 	}
-	body, err := io.ReadAll(r.Body)
+
+	// Stream in the request body
+	reqBody, err := io.ReadAll(r.Body)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprintf(w, "Error reading request body.\n")
+		fmt.Fprintf(w, "Error reading request req_body.\n")
 		return
 	}
-	if bytes.Equal(body[:6], []byte("OPEN\r\n")) {
-		w.Header().Add("Content-Type", "application/websocket-events")
+
+	// Echo the request body into the response
+	respBody := make([]byte, len(reqBody))
+	copy(respBody, reqBody)
+
+	w.Header().Add("Content-Type", "application/websocket-events")
+
+	// Is it an open message?
+	if bytes.Equal(reqBody[:6], []byte("OPEN\r\n")) {
+		// Subscribe it to the channel
+		respBody = append(respBody, WsSub(channel)...)
+
+		// Sec-WebSocket-Extension 'grip' - https://pushpin.org/docs/protocols/grip/#websocket
+		// "In order to enable GRIP functionality, the backend must include the grip extension in its response."
 		w.Header().Add("Sec-WebSocket-Extensions", "grip; message-prefix=\"\"")
-		w.WriteHeader(http.StatusOK)
-		resp := string(append([]byte("OPEN\r\n"), wsSub(channel)...))
-		fmt.Fprintf(w, resp)
-	} else if bytes.Equal(body[:5], []byte("TEXT ")) {
-		s := wsText(fmt.Sprintf("You said: %s\n", string(body[6:])))
-		fmt.Fprintf(w, string(s))
 	}
-}
 
-func gripResponse(w fsthttp.ResponseWriter, ctype string, ghold string, channel string) {
-	w.Header().Add("Content-Type", ctype)
-	w.Header().Add("Grip-Hold", ghold)
-	w.Header().Add("Grip-Channel", channel)
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(""))
-}
-
-func wsText(msg string) []byte {
-	return []byte(fmt.Sprintf("TEXT %2x\r\n%s\r\n", len(msg), msg))
-}
-
-func wsSub(channel string) []byte {
-	return wsText(fmt.Sprintf("c:{\"type\":\"subscribe\",\"channel\":\"%s\"}", channel))
+	w.Write(respBody)
 }
 
 func main() {
+	// Log service version.
 	fmt.Println("FASTLY_SERVICE_VERSION:", os.Getenv("FASTLY_SERVICE_VERSION"))
 	fsthttp.ServeFunc(func(ctx context.Context, w fsthttp.ResponseWriter, r *fsthttp.Request) {
 		//defer w.Close()
@@ -83,16 +79,20 @@ func main() {
 			w.Header().Set("X-Forwarded-Proto", "https")
 		}
 
+		// Request is a test request - from client, or from Fanout
 		if strings.HasSuffix(host, ".edgecompute.app") && strings.HasPrefix(path, "/test/") {
 			if r.Header.Get("Grip-Sig") != "" {
+				// Request is from Fanout, handle it here
 				handleTest(w, r, "test")
 				return
-			} else {
-				handoff.Fanout("self")
-				return
 			}
+
+			// Not from Fanout, route it through Fanout first
+			handoff.Fanout("self")
+			return
 		}
 
+		// Forward all non-test requests to the origin through Fanout
 		handoff.Fanout("origin")
 	})
 }
