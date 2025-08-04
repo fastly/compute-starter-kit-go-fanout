@@ -69,7 +69,6 @@ func main() {
 	fmt.Println("FASTLY_SERVICE_VERSION:", os.Getenv("FASTLY_SERVICE_VERSION"))
 	fsthttp.ServeFunc(func(ctx context.Context, w fsthttp.ResponseWriter, r *fsthttp.Request) {
 		//defer w.Close()
-		host := r.Host
 		path := r.URL.Path
 		addr := r.RemoteAddr
 
@@ -79,8 +78,8 @@ func main() {
 			w.Header().Set("X-Forwarded-Proto", "https")
 		}
 
-		// Request is a test request - from client, or from Fanout
-		if strings.HasSuffix(host, ".edgecompute.app") && strings.HasPrefix(path, "/test/") {
+		// Request is a test request
+		if strings.HasPrefix(path, "/test/") {
 			if r.Header.Get("Grip-Sig") != "" {
 				// Request is from Fanout, handle it here
 				handleTest(w, r, "test")
