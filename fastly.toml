@@ -6,9 +6,20 @@ description = "Implements fanout handlers for Websockets, SSE, etc."
 language = "go"
 manifest_version = 3
 name = "Fanout golang starter kit"
-service_id = ""
+
+[local_server.pushpin]
+enable = true
+
+[local_server.backends]
+[local_server.backends.origin]
+url = "https://example.com/"
+override_host = "example.com"
+
+[local_server.backends.self]
+url = "http://localhost:7676/"
+override_host = "localhost:7676"
 
 [scripts]
-  build = "go build -o bin/main.wasm ."
-  env_vars = ["GOARCH=wasm", "GOOS=wasip1"]
-  post_init = "go get github.com/fastly/compute-sdk-go@latest"
+build = "go build -o bin/main.wasm ."
+env_vars = ["GOARCH=wasm", "GOOS=wasip1"]
+post_init = "go get github.com/fastly/compute-sdk-go@latest"
